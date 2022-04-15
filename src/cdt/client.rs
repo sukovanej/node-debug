@@ -19,26 +19,30 @@ pub struct CDTClient {
     client: Client<TcpStream>,
 }
 
-fn parse_method_message(message: &Value) -> Result<Response, Box<dyn std::error::Error>> {
-    let method = message.get("method").unwrap().as_str().ok_or("method field must be string")?;
+pub type CDTClientResult<T> = Result<T, Box<dyn std::error::Error>>;
 
-    Ok(
-        match method {
-            "Debugger.scriptParsed" => {
-                Response::DebuggerScriptParsed(serde_json::from_value(message.to_owned())?)
-            }
-            _ => Response::Unknown(message.to_owned()),
-        },
-    )
+fn parse_method_message(message: &Value) -> CDTClientResult<Response> {
+    let method = message
+        .get("method")
+        .unwrap()
+        .as_str()
+        .ok_or("method field must be string")?;
+
+    Ok(match method {
+        "Debugger.scriptParsed" => {
+            Response::DebuggerScriptParsed(serde_json::from_value(message.to_owned())?)
+        }
+        _ => Response::Unknown(message.to_owned()),
+    })
 }
 
-fn parse_result_message(message: &Value) -> Result<Response, Box<dyn std::error::Error>> {
+fn parse_result_message(message: &Value) -> CDTClientResult<Response> {
     Ok(Response::Result(serde_json::from_value(
         message.to_owned(),
     )?))
 }
 
-fn parse_message(message: &str) -> Result<Response, Box<dyn std::error::Error>> {
+fn parse_message(message: &str) -> CDTClientResult<Response> {
     let parsed_message: Value = serde_json::from_str(&message)?;
 
     if parsed_message.get("method").is_some() {
@@ -60,9 +64,7 @@ impl CDTClient {
         CDTClient { client }
     }
 
-    pub fn read_messages_until_result(
-        &mut self,
-    ) -> Result<Vec<Response>, Box<dyn std::error::Error>> {
+    pub fn read_messages_until_result(&mut self) -> CDTClientResult<Vec<Response>> {
         let mut messages = Vec::new();
 
         loop {
@@ -85,7 +87,7 @@ impl CDTClient {
     pub fn runtime_run_if_waiting_for_debugger(
         &mut self,
         script_id: RuntimeScriptId,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> CDTClientResult<()> {
         let request_params = RuntimeRunScriptRequest::new(script_id);
         let request =
             Request::new_with_params(1, "Runtime.runIfWaitingForDebugger", &request_params)?;
@@ -95,7 +97,7 @@ impl CDTClient {
         Ok(())
     }
 
-    pub fn debugger_enable(&mut self) -> Result<(), Error> {
+    pub fn debugger_enable(&mut self) -> CDTClientResult<()> {
         let request = Request::new(1, "Debugger.enable");
         let message = json_to_message(&request)?;
 
@@ -103,7 +105,7 @@ impl CDTClient {
         Ok(())
     }
 
-    pub fn debugger_resume(&mut self) -> Result<(), Error> {
+    pub fn debugger_resume(&mut self) -> CDTClientResult<()> {
         let request = Request::new(1, "Debugger.resume");
         let message = json_to_message(&request)?;
 
