@@ -38,11 +38,23 @@ pub struct ResultResponse {
     result: Value,
 }
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Response {
     DebuggerScriptParsed(ScriptParsedResponse),
+    DebuggerPaused(DebuggerPausedResponse),
+    ResultScriptSource(ResultScriptSourceResponse),
     Result(ResultResponse),
     Unknown(Value),
+}
+
+impl Response {
+    pub fn expect_result_script_source(&self) -> Option<&ResultScriptSourceResponse> {
+        if let Response::ResultScriptSource(res) = self {
+            Some(res)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -63,43 +75,92 @@ pub struct DebuggerScriptParsedResponseParams {
     pub start_column: i32,
     pub start_line: i32,
     pub url: String,
+    #[serde(rename = "sourceMapURL")]
+    pub source_map_url: String,
+    #[serde(rename = "hasSourceURL")]
+    pub has_source_url: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct RuntimeRunScriptRequest {
+pub struct RuntimeRunScriptRequestParams {
     pub script_id: RuntimeScriptId,
 }
 
-impl RuntimeRunScriptRequest {
-    pub fn new(script_id: RuntimeScriptId) -> RuntimeRunScriptRequest {
-        RuntimeRunScriptRequest { script_id }
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct DebuggerGetPossibleBreakpointsParams {
+    pub start: DebuggerLocation,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct DebuggerLocation {
+    pub script_id: RuntimeScriptId,
+    pub line_number: i32,
+}
+
+impl DebuggerLocation {
+    pub fn new(script_id: RuntimeScriptId, line_number: i32) -> DebuggerLocation {
+        DebuggerLocation {
+            script_id,
+            line_number,
+        }
     }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct DebuggerPausedResponse {
+    pub params: DebuggerPausedParams,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct DebuggerPausedParams {
+    pub call_frames: Vec<DebuggerPausedCallFrame>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct DebuggerPausedCallFrame {
+    pub call_frame_id: String,
+    pub function_name: String,
+    pub function_location: DebuggerLocation,
+    pub location: DebuggerLocation,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ResultScriptSourceResponse {
+    pub result: ResultScriptSourceResponseResult
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ResultScriptSourceResponseResult {
+    pub script_source: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Request {
     pub id: i32,
-    pub method: &'static str,
+    pub method: String,
     pub params: Value,
 }
 
 impl Request {
-    pub fn new(id: i32, method: &'static str) -> Request {
+    pub fn new(id: i32, method: &str) -> Request {
         let params = Value::Object(Map::new());
-        Request { id, method, params }
+        Request { id, method: method.to_owned(), params }
     }
 
-    pub fn new_with_params<T: Serialize>(
-        id: i32,
-        method: &'static str,
-        params: &T,
-    ) -> Result<Request, Error> {
+    pub fn new_with_params(id: i32, method: &str, params: Value) -> Result<Request, Error> {
         Ok(Request {
             id,
-            method,
-            params: serde_json::to_value(params)?,
+            method: method.to_owned(),
+            params,
         })
     }
 }
