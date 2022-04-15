@@ -14,10 +14,7 @@ pub struct Debugger {
     pub web_socket_debugger_url: String,
 }
 
-pub fn get_debuggers(
-    host: &'static str,
-    port: &'static str,
-) -> Result<Vec<Debugger>, Box<dyn std::error::Error>> {
+pub fn get_debuggers(host: &str, port: &str) -> Result<Vec<Debugger>, Box<dyn std::error::Error>> {
     let url = format!("http://{}:{}/json", host, port);
     let response = reqwest::blocking::get(url.as_str())?;
     let parsed_response: Vec<Debugger> = serde_json::from_str(&response.text()?)?;
