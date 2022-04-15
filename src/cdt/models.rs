@@ -4,34 +4,6 @@ use serde_json::{Error, Map, Value};
 pub type RuntimeExecutionContextId = i32;
 pub type RuntimeScriptId = String;
 
-/// EXAMPLE:
-/// {
-///     "method":"Debugger.scriptParsed",
-///     "params":{
-///         "scriptId":"845",
-///         "url":"file:///home/suk/kiwi/synthetic-profile-service/node_modules/fast-check/lib/arbitrary/_internals/helpers/EnumerableKeysExtractor.js",
-///         "startLine":0,
-///         "startColumn":0,
-///         "endLine":16,
-///         "endColumn":0,
-///         "executionContextId":1,
-///         "hash":"1a5513906dbddc724ca3d0004c4e5c84212e6299",
-///         "executionContextAuxData":{"isDefault":true},
-///         "isLiveEdit":false,
-///         "sourceMapURL":"",
-///         "hasSourceURL":false,
-///         "isModule":false,
-///         "length":610,
-///         "stackTrace":{
-///            "callFrames":[
-///                {"functionName":"compileFunction","scriptId":"89","url":"node:vm","lineNumber":351,"columnNumber":17}
-///            ]
-///         },
-///         "scriptLanguage":"JavaScript",
-///         "embedderName": "file:///home/suk/kiwi/synthetic-profile-service/node_modules/fast-check/lib/arbitrary/_internals/helpers/EnumerableKeysExtractor.js"
-///     }
-/// }
-
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ResultResponse {
