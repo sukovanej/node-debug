@@ -52,16 +52,16 @@ pub fn evalulate_and_stringify_command(
 
 fn runtime_remote_object_to_string(obj: RuntimeRemoteObjectResult) -> String {
     if obj.value.is_some() {
-        return match obj.value.unwrap() {
+        match obj.value.unwrap() {
             RuntimeRemoteObjectResultValue::String(str) => format!("\"{}\"", str),
             RuntimeRemoteObjectResultValue::Number(n) => n.to_string(),
             RuntimeRemoteObjectResultValue::Bool(b) => b.to_string(),
-        };
+        }
     } else if obj.description.is_some() {
-        return format!("[description {}]", obj.description.unwrap());
+        format!("[description {}]", obj.description.unwrap())
     } else if obj.class_name.is_some() {
-        return format!("[class {}]", obj.class_name.unwrap());
+        format!("[class {}]", obj.class_name.unwrap())
+    } else {
+        "[<unknown object>]".to_string()
     }
-
-    return "[<unknown object>]".to_string();
 }
