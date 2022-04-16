@@ -46,7 +46,6 @@ fn parse_result_message(message: Value) -> CDTClientResult<Response> {
     } else if result.get("objectId").is_some() {
         Response::ResultRuntimeRemoteObject(serde_json::from_value(message)?)
     } else {
-        println!("{:?}", message);
         Response::Result(serde_json::from_value(message)?)
     })
 }
@@ -119,8 +118,7 @@ impl CDTClient {
 
         self.client.send_message(&message)?;
 
-        let messages = self.read_messages_until_result()?;
-        println!("runtime_run_if_waiting_for_debugger: {:?}", messages.last());
+        let _messages = self.read_messages_until_result()?;
 
         let messages = self.read_messages_until_paused()?;
         let paused_message = match messages.last().unwrap() {
@@ -216,8 +214,6 @@ impl CDTClient {
 
         let messages = self.read_messages_until_result()?;
         let remote_object = messages.last().unwrap();
-
-        println!("{:?}", remote_object);
 
         let remote_object = match remote_object {
             Response::Result(o) => Ok(o),
