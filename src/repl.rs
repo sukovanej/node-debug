@@ -40,11 +40,12 @@ pub fn start_repl(host: &str, port: &str, id: &str) {
     client.debugger_set_pause_on_exception().unwrap();
     client.profiler_enable().unwrap();
 
-    println!("waiting for the debugger...");
+    println!("Waiting for the debugger...");
     let mut repl_state = initialize(&mut client);
 
     if matches!(repl_state.debugger_state, DebuggerState::Exited) {
-        panic!("unexpected state");
+        println!("Debugger context destroyed...");
+        std::process::exit(1);
     }
 
     loop {
@@ -99,8 +100,17 @@ fn run_command(client: &mut CDTClient, line: &str, repl_state: ReplState) -> Rep
     match line {
         "s" | "show" => show_source_code(client, repl_state),
         "c" | "continue" => continue_command(client, repl_state),
+        "q" | "quit" => quit_command(),
         "h" | "help" => help_command(client, repl_state),
         _ => evaluate_expression(client, line, repl_state),
+    }
+}
+
+fn quit_command() -> ReplState {
+    println!("Exiting, see ya!");
+    ReplState {
+        debugger_state: DebuggerState::Exited,
+        call_frames: None,
     }
 }
 
@@ -156,6 +166,7 @@ fn runtime_remote_object_to_string(obj: RuntimeRemoteObjectResult) -> String {
         return match obj.value.unwrap() {
             RuntimeRemoteObjectResultValue::String(str) => format!("\"{}\"", str),
             RuntimeRemoteObjectResultValue::Number(n) => n.to_string(),
+            RuntimeRemoteObjectResultValue::Bool(b) => b.to_string(),
         };
     } else if obj.description.is_some() {
         return format!("[description {}]", obj.description.unwrap());
@@ -204,6 +215,7 @@ fn show_source_code(client: &mut CDTClient, repl_state: ReplState) -> ReplState 
 fn help_command(_: &mut CDTClient, repl_state: ReplState) -> ReplState {
     let help = "s / show                 show source code of the current call frame\n\
          c / continue             resume the execution\n\
+         q / quit                 quit the debugger\n\
          h / help                 show this help\n\
          [javascript expression]  evalute JS expression in the current call frame";
 

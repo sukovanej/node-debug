@@ -126,9 +126,8 @@ impl CDTClient {
 
         self.client.send_message(&message)?;
 
-        let _messages = self.read_messages_until_result()?;
-
         let messages = self.read_messages_until_paused_or_destroyed()?;
+
         let paused_message = match messages.last().unwrap() {
             Response::DebuggerPaused(msg) => Some(msg.clone()),
             Response::RuntimeExecutionContextDestroyed(_msg) => None,

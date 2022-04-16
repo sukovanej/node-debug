@@ -27,7 +27,7 @@ fn main() {
         Ok(debuggers) => debuggers[0].id.to_owned(),
         _ => {
             println!(
-                "Error while fetch {}:{}, is it running?",
+                "Error while fetching {}:{}, is it running?",
                 &args.host, &args.port
             );
             std::process::exit(1);

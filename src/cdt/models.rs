@@ -25,6 +25,7 @@ pub struct RuntimeRemoteObjectResult {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum RuntimeRemoteObjectResultValue {
+    Bool(bool),
     String(String),
     Number(i32),
 }
