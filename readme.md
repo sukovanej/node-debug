@@ -1,6 +1,5 @@
 ## TODO
 
- - repl: add `next` / `n` command - aka `stepOver`
  - repl: show the preview with a pointer to the current line
 
 ## CDT Protocol notes

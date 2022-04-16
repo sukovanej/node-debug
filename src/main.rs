@@ -7,7 +7,7 @@ use clap::Parser;
 
 use crate::cdt::http_client::get_debuggers;
 
-use crate::repl::start_repl;
+use crate::repl::start_repl::start_repl;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]

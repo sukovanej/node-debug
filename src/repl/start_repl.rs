@@ -1,30 +1,14 @@
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
-use crate::cdt::client::CDTClient;
-use crate::cdt::models::{
-    DebuggerPausedCallFrame, RuntimeRemoteObjectResult, RuntimeRemoteObjectResultValue,
-};
 use crate::code_preview::show_source_code;
 use crate::source_code::SourceCode;
+use crate::{cdt::client::CDTClient, repl::repl_state::DebuggerState};
 
-#[derive(Clone)]
-struct ReplState {
-    call_frames: Option<ReplStateCallFrame>,
-    debugger_state: DebuggerState,
-}
-
-#[derive(Clone)]
-enum DebuggerState {
-    Paused,
-    Exited,
-}
-
-#[derive(Clone)]
-struct ReplStateCallFrame {
-    call_frames: Vec<DebuggerPausedCallFrame>,
-    active_id: usize,
-}
+use super::evaluate_command::{
+    evaluate_expression, evaluate_expression_from_command, evalulate_and_stringify_command,
+};
+use super::repl_state::{ReplState, ReplStateCallFrame};
 
 pub fn start_repl(host: &str, port: &str, id: &str) {
     let mut client = CDTClient::new(host, port, id);
@@ -101,25 +85,13 @@ fn run_command(client: &mut CDTClient, line: &str, repl_state: ReplState) -> Rep
     match line {
         "s" | "show" => show_source_code_command(client, repl_state),
         "c" | "continue" => continue_command(client, repl_state),
-        cmd if cmd.starts_with("e ") => evaluate_expression(
-            client,
-            &line.chars().skip(2).collect::<String>(),
-            repl_state,
-        ),
-        cmd if cmd.starts_with("es ") => evalulate_and_stringify(
-            client,
-            &line.chars().skip(3).collect::<String>(),
-            repl_state,
-        ),
+        cmd if cmd.starts_with("e ") => evaluate_expression_from_command(client, cmd, repl_state),
+        cmd if cmd.starts_with("es ") => evalulate_and_stringify_command(client, cmd, repl_state),
         "n" | "next" => next_command(client, repl_state),
         "q" | "quit" => quit_command(),
         "h" | "help" => help_command(client, repl_state),
         _ => evaluate_expression(client, line, repl_state),
     }
-}
-
-fn evalulate_and_stringify(client: &mut CDTClient, line: &str, repl_state: ReplState) -> ReplState {
-    evaluate_expression(client, &format!("JSON.stringify({})", line), repl_state)
 }
 
 fn quit_command() -> ReplState {
@@ -154,45 +126,6 @@ fn continue_command(client: &mut CDTClient, repl_state: ReplState) -> ReplState 
     }
 }
 
-fn evaluate_expression(client: &mut CDTClient, line: &str, repl_state: ReplState) -> ReplState {
-    if repl_state.call_frames.is_none() {
-        return repl_state.clone();
-    }
-
-    let call_frames = repl_state.call_frames.as_ref().unwrap();
-    let call_frame = &call_frames.call_frames[call_frames.active_id];
-    let call_frame_id = &call_frame.call_frame_id;
-
-    let remote_object = client.debugger_evaluate_on_call_frame(call_frame_id.to_owned(), line);
-
-    match remote_object {
-        Ok(obj) => {
-            println!("{}", runtime_remote_object_to_string(obj.result));
-        }
-        Err(err) => {
-            println!("Error while evaluating: {:?}", err);
-        }
-    };
-
-    repl_state
-}
-
-fn runtime_remote_object_to_string(obj: RuntimeRemoteObjectResult) -> String {
-    if obj.value.is_some() {
-        return match obj.value.unwrap() {
-            RuntimeRemoteObjectResultValue::String(str) => format!("\"{}\"", str),
-            RuntimeRemoteObjectResultValue::Number(n) => n.to_string(),
-            RuntimeRemoteObjectResultValue::Bool(b) => b.to_string(),
-        };
-    } else if obj.description.is_some() {
-        return format!("[description {}]", obj.description.unwrap());
-    } else if obj.class_name.is_some() {
-        return format!("[class {}]", obj.class_name.unwrap());
-    }
-
-    return "[<unknown object>]".to_string();
-}
-
 fn show_source_code_command(client: &mut CDTClient, repl_state: ReplState) -> ReplState {
     let call_frames = repl_state.call_frames.as_ref().unwrap();
     let call_frame = &call_frames.call_frames[call_frames.active_id];
@@ -212,7 +145,7 @@ fn show_source_code_command(client: &mut CDTClient, repl_state: ReplState) -> Re
         Ok((file_name, preview)) => {
             println!("{}", file_name);
             println!("{}", preview);
-        },
+        }
         Err(err) => {
             println!("Error: {:?}", err);
         }
