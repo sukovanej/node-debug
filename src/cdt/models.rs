@@ -3,18 +3,38 @@ use serde_json::{Error, Map, Value};
 
 pub type RuntimeExecutionContextId = i32;
 pub type RuntimeScriptId = String;
+pub type DebuggerCallFrameId = String;
+pub type RuntimeRemoteObjectId = String;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct ResultResponse {
-    result: Value,
+pub struct RuntimeRemoteObject {
+    pub result: RuntimeRemoteObjectResult
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeRemoteObjectResult {
+    pub r#type: String,
+    pub object_id: Option<String>,
+    pub value: Option<String>,
+    pub description: Option<String>,
+    pub class_name: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ResultResponse {
+    pub id: i32,
+    pub result: Value,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Response {
     DebuggerScriptParsed(ScriptParsedResponse),
     DebuggerPaused(DebuggerPausedResponse),
     ResultScriptSource(ResultScriptSourceResponse),
+    ResultRuntimeRemoteObject(RuntimeRemoteObject),
     Result(ResultResponse),
     Unknown(Value),
 }
@@ -27,16 +47,24 @@ impl Response {
             None
         }
     }
+
+    pub fn expect_runtime_remote_object(&self) -> Option<&RuntimeRemoteObject> {
+        if let Response::ResultRuntimeRemoteObject(res) = self {
+            Some(res)
+        } else {
+            None
+        }
+    }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ScriptParsedResponse {
     pub method: String,
     pub params: DebuggerScriptParsedResponseParams,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DebuggerScriptParsedResponseParams {
     pub end_column: i32,
@@ -65,35 +93,26 @@ pub struct DebuggerGetPossibleBreakpointsParams {
     pub start: DebuggerLocation,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DebuggerLocation {
     pub script_id: RuntimeScriptId,
     pub line_number: i32,
 }
 
-impl DebuggerLocation {
-    pub fn new(script_id: RuntimeScriptId, line_number: i32) -> DebuggerLocation {
-        DebuggerLocation {
-            script_id,
-            line_number,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DebuggerPausedResponse {
     pub params: DebuggerPausedParams,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DebuggerPausedParams {
     pub call_frames: Vec<DebuggerPausedCallFrame>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DebuggerPausedCallFrame {
     pub call_frame_id: String,

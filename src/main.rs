@@ -1,11 +1,10 @@
 mod cdt;
 mod source_code;
-mod http_client;
 
-use cdt::client::CDTClient;
-use http_client::get_debuggers;
+use crate::cdt::client::CDTClient;
+use crate::cdt::http_client::get_debuggers;
 
-use crate::{cdt::models::Response, source_code::SourceCode};
+use crate::source_code::SourceCode;
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let host = "127.0.0.1";
@@ -21,46 +20,32 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut client = CDTClient::new(host, port, id.as_str());
 
     client.runtime_enable().unwrap();
-
-    let messages = client.read_messages_until_result()?;
-    println!("runtime enabled: {:?}", messages.last());
-
     client.debugger_enable().unwrap();
-
-    let messages = client.read_messages_until_result()?;
-    println!("debugger enabled: {:?}", messages.last());
-
     client.debugger_set_pause_on_exception().unwrap();
-
     client.profiler_enable().unwrap();
+    let paused_message = client.runtime_run_if_waiting_for_debugger().unwrap();
 
-    let messages = client.read_messages_until_result()?;
-    println!("profiler enabled: {:?}", messages.last());
+    let call_frame = &paused_message.params.call_frames[0];
+    let top_level_script_id = call_frame.location.script_id.to_owned();
 
-    client.runtime_run_if_waiting_for_debugger().unwrap();
-
-    let messages = client.read_messages_until_result()?;
-    println!("runtime_run_if_waiting_for_debugger: {:?}", messages.last());
-
-    let messages = client.read_messages_until_paused()?;
-    let paused_message = match messages.last().unwrap() {
-        Response::DebuggerPaused(msg) => msg,
-        _ => panic!("debugger_paused expected"),
-    };
-    println!("debugger paused");
-
-    let top_level_script_id = paused_message.params.call_frames[0]
-        .location
-        .script_id
-        .to_owned();
+    println!("debugger paused on {:?}", call_frame);
 
     let source = client
         .debugger_get_script_source(top_level_script_id)
         .unwrap();
 
     let source_code = SourceCode::from_str(&source.result.script_source);
+    let mapping_content = &source_code.source_mapping.unwrap().sources_content[0];
 
-    println!("{:?}", source_code);
+    println!("Paused on {}", mapping_content);
+
+    let expression = "String([provider, 1 + 2])";
+    let call_frame_id = &call_frame.call_frame_id;
+    let remote_object = client
+        .debugger_evaluate_on_call_frame(call_frame_id.to_owned(), expression)
+        .unwrap();
+
+    println!("evaluated: {:?}", remote_object);
 
     Ok(())
 }

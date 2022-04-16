@@ -8,7 +8,10 @@ use websocket::{ClientBuilder, Message, OwnedMessage};
 
 use crate::cdt::models::Request;
 
-use super::models::{Response, ResultScriptSourceResponse, RuntimeScriptId};
+use super::models::{
+    DebuggerCallFrameId, DebuggerPausedResponse, Response, ResultScriptSourceResponse,
+    RuntimeRemoteObject, RuntimeRemoteObjectId, RuntimeScriptId,
+};
 
 fn json_to_message<T: Serialize>(json_value: &T) -> Result<Message<'static>, Error> {
     let deserialized_value = to_string_pretty(json_value)?;
@@ -37,9 +40,13 @@ fn parse_method_message(message: Value) -> CDTClientResult<Response> {
 
 fn parse_result_message(message: Value) -> CDTClientResult<Response> {
     let result = message.get("result").unwrap();
+
     Ok(if result.get("scriptSource").is_some() {
         Response::ResultScriptSource(serde_json::from_value(message)?)
+    } else if result.get("objectId").is_some() {
+        Response::ResultRuntimeRemoteObject(serde_json::from_value(message)?)
     } else {
+        println!("{:?}", message);
         Response::Result(serde_json::from_value(message)?)
     })
 }
@@ -93,7 +100,9 @@ impl CDTClient {
         self.read_messages_until(|message| {
             matches!(
                 message,
-                Response::Result(_) | Response::ResultScriptSource(_)
+                Response::Result(_)
+                    | Response::ResultScriptSource(_)
+                    | Response::ResultRuntimeRemoteObject(_)
             )
         })
     }
@@ -102,36 +111,51 @@ impl CDTClient {
         self.read_messages_until(|message| matches!(message, Response::DebuggerPaused(_)))
     }
 
-    pub fn runtime_run_if_waiting_for_debugger(&mut self) -> CDTClientResult<()> {
+    pub fn runtime_run_if_waiting_for_debugger(
+        &mut self,
+    ) -> CDTClientResult<DebuggerPausedResponse> {
         let request = Request::new(1, "Runtime.runIfWaitingForDebugger");
         let message = json_to_message(&request)?;
 
         self.client.send_message(&message)?;
-        Ok(())
+
+        let messages = self.read_messages_until_result()?;
+        println!("runtime_run_if_waiting_for_debugger: {:?}", messages.last());
+
+        let messages = self.read_messages_until_paused()?;
+        let paused_message = match messages.last().unwrap() {
+            Response::DebuggerPaused(msg) => msg,
+            _ => panic!("debugger_paused expected"),
+        };
+
+        Ok(paused_message.clone())
     }
 
-    pub fn runtime_enable(&mut self) -> CDTClientResult<()> {
+    pub fn runtime_enable(&mut self) -> CDTClientResult<Response> {
         let request = Request::new(1, "Runtime.enable");
         let message = json_to_message(&request)?;
-
         self.client.send_message(&message).unwrap();
-        Ok(())
+
+        let messages = self.read_messages_until_result()?;
+        Ok(messages.last().unwrap().clone())
     }
 
-    pub fn profiler_enable(&mut self) -> CDTClientResult<()> {
+    pub fn profiler_enable(&mut self) -> CDTClientResult<Response> {
         let request = Request::new(1, "Profiler.enable");
         let message = json_to_message(&request)?;
 
         self.client.send_message(&message).unwrap();
-        Ok(())
+        let messages = self.read_messages_until_result()?;
+        Ok(messages.last().unwrap().clone())
     }
 
-    pub fn debugger_enable(&mut self) -> CDTClientResult<()> {
+    pub fn debugger_enable(&mut self) -> CDTClientResult<Response> {
         let request = Request::new(1, "Debugger.enable");
         let message = json_to_message(&request)?;
 
         self.client.send_message(&message).unwrap();
-        Ok(())
+        let messages = self.read_messages_until_result()?;
+        Ok(messages.last().unwrap().clone())
     }
 
     pub fn debugger_resume(&mut self) -> CDTClientResult<()> {
@@ -173,6 +197,42 @@ impl CDTClient {
     pub fn debugger_set_pause_on_exception(&mut self) -> CDTClientResult<()> {
         let params = json!({"state": "none"});
         let request = Request::new_with_params(1, "Debugger.setPauseOnExceptions", params)?;
+        let message = json_to_message(&request)?;
+
+        self.client.send_message(&message).unwrap();
+        Ok(())
+    }
+
+    pub fn debugger_evaluate_on_call_frame(
+        &mut self,
+        call_frame_id: DebuggerCallFrameId,
+        expression: &str,
+    ) -> CDTClientResult<RuntimeRemoteObject> {
+        let params = json!({"callFrameId": call_frame_id, "expression": expression});
+        let request = Request::new_with_params(1, "Debugger.evaluateOnCallFrame", params)?;
+        let message = json_to_message(&request)?;
+
+        self.client.send_message(&message).unwrap();
+
+        let messages = self.read_messages_until_result()?;
+        let remote_object = messages.last().unwrap();
+
+        println!("{:?}", remote_object);
+
+        let remote_object = match remote_object {
+            Response::Result(o) => Ok(o),
+            _ => Err("expected runtime remote object"),
+        }?;
+
+        Ok(serde_json::from_value(remote_object.result.clone())?)
+    }
+
+    pub fn runtime_get_properties(
+        &mut self,
+        object_id: RuntimeRemoteObjectId,
+    ) -> CDTClientResult<()> {
+        let params = json!({ "objectId": object_id });
+        let request = Request::new_with_params(1, "Runtime.getProperties", params)?;
         let message = json_to_message(&request)?;
 
         self.client.send_message(&message).unwrap();
