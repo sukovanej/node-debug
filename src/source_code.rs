@@ -1,21 +1,13 @@
-use serde::{Serialize, Deserialize};
+use sourcemap::SourceMap;
 
 #[derive(Debug)]
 pub struct SourceCode {
     pub code: String,
-    pub source_mapping: Option<SourceMapping>,
+    pub source_mapping: Option<SourceMap>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct SourceMapping {
-    pub file: String,
-    pub mappings: String,
-    pub names: Vec<String>,
-    pub sources: Vec<String>,
-    pub sources_content: Vec<String>,
-    pub version: i32,
-}
+static MAPPING_START: &'static str = "//# sourceMappingURL=";
+static BASE64_CODING: &'static str = "data:application/json;charset=utf-8;base64";
 
 impl SourceCode {
     pub fn from_str(input: &str) -> SourceCode {
@@ -31,25 +23,22 @@ impl SourceCode {
 
         let (source_mapping, code) = lines.unwrap();
         let code = code.join("\n");
-
-        let mapping_start = "//# sourceMappingURL=";
-        let base64_coding = "data:application/json;charset=utf-8;base64";
-        let base64_mapping_start = format!("{}{},", mapping_start, base64_coding);
+        let base64_mapping_start = format!("{}{},", MAPPING_START, BASE64_CODING);
 
         if source_mapping.starts_with(&base64_mapping_start) {
             let base64_input = source_mapping.replace(&base64_mapping_start, "");
             let maybe_decoded_mapping = try_decode_mapping(&base64_input)
-                .and_then(|x| serde_json::from_str::<SourceMapping>(&x).ok());
+                .and_then(|x| SourceMap::from_slice(x.as_bytes()).ok());
 
             return SourceCode {
                 code,
                 source_mapping: maybe_decoded_mapping,
             };
-        } else if source_mapping.starts_with(mapping_start) {
+        } else if source_mapping.starts_with(MAPPING_START) {
             return SourceCode {
                 code,
                 source_mapping: Some(source_mapping.to_string())
-                    .and_then(|x| serde_json::from_str::<SourceMapping>(&x).ok()),
+                    .and_then(|x| SourceMap::from_slice(x.as_bytes()).ok()),
             };
         }
 

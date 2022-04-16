@@ -118,7 +118,8 @@ pub struct DebuggerGetPossibleBreakpointsParams {
 #[serde(rename_all = "camelCase")]
 pub struct DebuggerLocation {
     pub script_id: RuntimeScriptId,
-    pub line_number: i32,
+    pub line_number: u32,
+    pub column_number: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
