@@ -111,6 +111,7 @@ fn run_command(client: &mut CDTClient, line: &str, repl_state: ReplState) -> Rep
             &line.chars().skip(3).collect::<String>(),
             repl_state,
         ),
+        "n" | "next" => next_command(client, repl_state),
         "q" | "quit" => quit_command(),
         "h" | "help" => help_command(client, repl_state),
         _ => evaluate_expression(client, line, repl_state),
@@ -209,6 +210,30 @@ fn show_source_code_command(client: &mut CDTClient, repl_state: ReplState) -> Re
     println!("{}", preview);
 
     repl_state
+}
+
+fn next_command(client: &mut CDTClient, repl_state: ReplState) -> ReplState {
+    if !matches!(repl_state.debugger_state, DebuggerState::Paused) {
+        println!("Error: debugger is not paused");
+        return repl_state;
+    }
+
+    client.debugger_step_over().unwrap();
+    let message = client.runtime_run_if_waiting_for_debugger().unwrap();
+
+    match message {
+        Some(message) => ReplState {
+            call_frames: Some(ReplStateCallFrame {
+                call_frames: message.params.call_frames.clone(),
+                active_id: 0,
+            }),
+            debugger_state: DebuggerState::Paused,
+        },
+        None => ReplState {
+            call_frames: None,
+            debugger_state: DebuggerState::Exited,
+        },
+    }
 }
 
 fn help_command(_: &mut CDTClient, repl_state: ReplState) -> ReplState {

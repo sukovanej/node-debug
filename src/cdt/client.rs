@@ -118,6 +118,12 @@ impl CDTClient {
         })
     }
 
+    pub fn read_messages_until_script_source(&mut self) -> CDTClientResult<Vec<Response>> {
+        self.read_messages_until(|message| {
+            matches!(message, Response::ResultScriptSource(_))
+        })
+    }
+
     pub fn runtime_run_if_waiting_for_debugger(
         &mut self,
     ) -> CDTClientResult<Option<DebuggerPausedResponse>> {
@@ -190,7 +196,7 @@ impl CDTClient {
 
         self.client.send_message(&message).unwrap();
 
-        let messages = self.read_messages_until_result().unwrap();
+        let messages = self.read_messages_until_script_source().unwrap();
         let last_message = messages
             .last()
             .unwrap()
@@ -250,6 +256,14 @@ impl CDTClient {
         let request_params = json!({ "scriptId": script_id });
         let request =
             Request::new_with_params(1, "Debugger.getPossibleBreakpoints", request_params)?;
+        let message = json_to_message(&request)?;
+
+        self.client.send_message(&message).unwrap();
+        Ok(())
+    }
+
+    pub fn debugger_step_over(&mut self) -> CDTClientResult<()> {
+        let request = Request::new(1, "Debugger.stepOver");
         let message = json_to_message(&request)?;
 
         self.client.send_message(&message).unwrap();
