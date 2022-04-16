@@ -1,8 +1,5 @@
 ## TODO
 
- - repl: add `eval` / `e` command in case abbrevs for the debugger conflits
-   with a name of variables we want to evaluate
- - repl: add `quit` / `q` command
  - repl: add `next` / `n` command - aka `stepOver`
 
 ## CDT Protocol notes

@@ -100,10 +100,24 @@ fn run_command(client: &mut CDTClient, line: &str, repl_state: ReplState) -> Rep
     match line {
         "s" | "show" => show_source_code(client, repl_state),
         "c" | "continue" => continue_command(client, repl_state),
+        cmd if cmd.starts_with("e ") => evaluate_expression(
+            client,
+            &line.chars().skip(2).collect::<String>(),
+            repl_state,
+        ),
+        cmd if cmd.starts_with("es ") => evalulate_and_stringify(
+            client,
+            &line.chars().skip(3).collect::<String>(),
+            repl_state,
+        ),
         "q" | "quit" => quit_command(),
         "h" | "help" => help_command(client, repl_state),
         _ => evaluate_expression(client, line, repl_state),
     }
+}
+
+fn evalulate_and_stringify(client: &mut CDTClient, line: &str, repl_state: ReplState) -> ReplState {
+    evaluate_expression(client, &format!("JSON.stringify({})", line), repl_state)
 }
 
 fn quit_command() -> ReplState {
@@ -217,7 +231,9 @@ fn help_command(_: &mut CDTClient, repl_state: ReplState) -> ReplState {
          c / continue             resume the execution\n\
          q / quit                 quit the debugger\n\
          h / help                 show this help\n\
-         [javascript expression]  evalute JS expression in the current call frame";
+         es <expresssion>         evalute JS expression and stringify it in the current call frame\n\
+         e <expresssion>          evalute JS expression in the current call frame\n\
+         <expression>             evalute JS expression in the current call frame";
 
     println!("{}", help);
 
