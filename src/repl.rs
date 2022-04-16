@@ -10,6 +10,13 @@ use crate::source_code::SourceCode;
 #[derive(Clone)]
 struct ReplState {
     call_frames: Option<ReplStateCallFrame>,
+    debugger_state: DebuggerState,
+}
+
+#[derive(Clone)]
+enum DebuggerState {
+    Paused,
+    Exited,
 }
 
 #[derive(Clone)]
@@ -34,8 +41,11 @@ pub fn start_repl(host: &str, port: &str, id: &str) {
     client.profiler_enable().unwrap();
 
     println!("waiting for the debugger...");
-    let mut repl_state = command_run(&mut client);
-    println!("entering debugger");
+    let mut repl_state = initialize(&mut client);
+
+    if matches!(repl_state.debugger_state, DebuggerState::Exited) {
+        panic!("unexpected state");
+    }
 
     loop {
         let readline = rl.readline(">> ");
@@ -43,7 +53,11 @@ pub fn start_repl(host: &str, port: &str, id: &str) {
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str());
-                repl_state = run_command(&mut client, &line, &repl_state);
+                repl_state = run_command(&mut client, &line, repl_state);
+
+                if matches!(repl_state.debugger_state, DebuggerState::Exited) {
+                    break;
+                }
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
@@ -63,40 +77,58 @@ pub fn start_repl(host: &str, port: &str, id: &str) {
     rl.save_history(history_file_path).unwrap();
 }
 
-fn run_command(client: &mut CDTClient, line: &str, repl_state: &ReplState) -> ReplState {
+fn initialize(client: &mut CDTClient) -> ReplState {
+    let message = client.runtime_run_if_waiting_for_debugger().unwrap();
+
+    match message {
+        Some(message) => ReplState {
+            call_frames: Some(ReplStateCallFrame {
+                call_frames: message.params.call_frames.clone(),
+                active_id: 0,
+            }),
+            debugger_state: DebuggerState::Paused,
+        },
+        None => ReplState {
+            call_frames: None,
+            debugger_state: DebuggerState::Exited,
+        },
+    }
+}
+
+fn run_command(client: &mut CDTClient, line: &str, repl_state: ReplState) -> ReplState {
     match line {
-        "r" | "run" => command_run(client),
         "s" | "show" => show_source_code(client, repl_state),
-        "c" | "continue" => continue_command(client),
+        "c" | "continue" => continue_command(client, repl_state),
         "h" | "help" => help_command(client, repl_state),
         _ => evaluate_expression(client, line, repl_state),
     }
 }
 
-fn continue_command(client: &mut CDTClient) -> ReplState {
+fn continue_command(client: &mut CDTClient, repl_state: ReplState) -> ReplState {
+    if !matches!(repl_state.debugger_state, DebuggerState::Paused) {
+        println!("Error: debugger is not paused");
+        return repl_state;
+    }
+
     client.debugger_resume().unwrap();
-    let paused_message = client.runtime_run_if_waiting_for_debugger().unwrap();
+    let message = client.runtime_run_if_waiting_for_debugger().unwrap();
 
-    ReplState {
-        call_frames: Some(ReplStateCallFrame {
-            call_frames: paused_message.params.call_frames.clone(),
-            active_id: 0,
-        }),
+    match message {
+        Some(message) => ReplState {
+            call_frames: Some(ReplStateCallFrame {
+                call_frames: message.params.call_frames.clone(),
+                active_id: 0,
+            }),
+            debugger_state: DebuggerState::Paused,
+        },
+        None => ReplState {
+            call_frames: None,
+            debugger_state: DebuggerState::Exited,
+        },
     }
 }
 
-fn command_run(client: &mut CDTClient) -> ReplState {
-    let paused_message = client.runtime_run_if_waiting_for_debugger().unwrap();
-
-    ReplState {
-        call_frames: Some(ReplStateCallFrame {
-            call_frames: paused_message.params.call_frames.clone(),
-            active_id: 0,
-        }),
-    }
-}
-
-fn evaluate_expression(client: &mut CDTClient, line: &str, repl_state: &ReplState) -> ReplState {
+fn evaluate_expression(client: &mut CDTClient, line: &str, repl_state: ReplState) -> ReplState {
     if repl_state.call_frames.is_none() {
         return repl_state.clone();
     }
@@ -116,25 +148,25 @@ fn evaluate_expression(client: &mut CDTClient, line: &str, repl_state: &ReplStat
         }
     };
 
-    repl_state.clone()
+    repl_state
 }
 
 fn runtime_remote_object_to_string(obj: RuntimeRemoteObjectResult) -> String {
     if obj.value.is_some() {
         return match obj.value.unwrap() {
-            RuntimeRemoteObjectResultValue::String(str) => str,
+            RuntimeRemoteObjectResultValue::String(str) => format!("\"{}\"", str),
             RuntimeRemoteObjectResultValue::Number(n) => n.to_string(),
         };
     } else if obj.description.is_some() {
-        return obj.description.unwrap();
+        return format!("[description {}]", obj.description.unwrap());
     } else if obj.class_name.is_some() {
-        return obj.class_name.unwrap();
+        return format!("[class {}]", obj.class_name.unwrap());
     }
 
-    return "unknown object".to_string();
+    return "[<unknown object>]".to_string();
 }
 
-fn show_source_code(client: &mut CDTClient, repl_state: &ReplState) -> ReplState {
+fn show_source_code(client: &mut CDTClient, repl_state: ReplState) -> ReplState {
     let call_frames = repl_state.call_frames.as_ref().unwrap();
     let call_frame = &call_frames.call_frames[call_frames.active_id];
     let top_level_script_id = call_frame.location.script_id.clone();
@@ -148,16 +180,16 @@ fn show_source_code(client: &mut CDTClient, repl_state: &ReplState) -> ReplState
 
     println!("{}", mapping_content);
 
-    repl_state.clone()
+    repl_state
 }
 
-fn help_command(_: &mut CDTClient, repl_state: &ReplState) -> ReplState {
-    let help = 
-        "s / show                 => show source code of the current call frame\n\
-         c / continue             => resume the execution\n\
-         h / help                 => show this help\n\
-         [javascript expression]  => evalute JS expression in the current call frame";
+fn help_command(_: &mut CDTClient, repl_state: ReplState) -> ReplState {
+    let help = "s / show                 show source code of the current call frame\n\
+         c / continue             resume the execution\n\
+         h / help                 show this help\n\
+         [javascript expression]  evalute JS expression in the current call frame";
+
     println!("{}", help);
 
-    repl_state.clone()
+    repl_state
 }

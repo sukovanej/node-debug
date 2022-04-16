@@ -9,7 +9,7 @@ pub type RuntimeRemoteObjectId = String;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeRemoteObject {
-    pub result: RuntimeRemoteObjectResult
+    pub result: RuntimeRemoteObjectResult,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -37,11 +37,25 @@ pub struct ResultResponse {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeExecutionContextDestroyed {
+    method: String,
+    params: RuntimeExecutionContextDestroyedParams,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeExecutionContextDestroyedParams {
+    execution_context_id: RuntimeExecutionContextId,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Response {
     DebuggerScriptParsed(ScriptParsedResponse),
     DebuggerPaused(DebuggerPausedResponse),
     ResultScriptSource(ResultScriptSourceResponse),
     ResultRuntimeRemoteObject(RuntimeRemoteObject),
+    RuntimeExecutionContextDestroyed(RuntimeExecutionContextDestroyed),
     Result(ResultResponse),
     Unknown(Value),
 }
@@ -131,7 +145,7 @@ pub struct DebuggerPausedCallFrame {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ResultScriptSourceResponse {
-    pub result: ResultScriptSourceResponseResult
+    pub result: ResultScriptSourceResponseResult,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -151,7 +165,11 @@ pub struct Request {
 impl Request {
     pub fn new(id: i32, method: &str) -> Request {
         let params = Value::Object(Map::new());
-        Request { id, method: method.to_owned(), params }
+        Request {
+            id,
+            method: method.to_owned(),
+            params,
+        }
     }
 
     pub fn new_with_params(id: i32, method: &str, params: Value) -> Result<Request, Error> {

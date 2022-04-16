@@ -34,6 +34,9 @@ fn parse_method_message(message: Value) -> CDTClientResult<Response> {
     Ok(match method {
         "Debugger.scriptParsed" => Response::DebuggerScriptParsed(serde_json::from_value(message)?),
         "Debugger.paused" => Response::DebuggerPaused(serde_json::from_value(message)?),
+        "Runtime.executionContextDestroyed" => {
+            Response::RuntimeExecutionContextDestroyed(serde_json::from_value(message)?)
+        }
         _ => Response::Unknown(message.to_owned()),
     })
 }
@@ -106,13 +109,18 @@ impl CDTClient {
         })
     }
 
-    pub fn read_messages_until_paused(&mut self) -> CDTClientResult<Vec<Response>> {
-        self.read_messages_until(|message| matches!(message, Response::DebuggerPaused(_)))
+    pub fn read_messages_until_paused_or_destroyed(&mut self) -> CDTClientResult<Vec<Response>> {
+        self.read_messages_until(|message| {
+            matches!(
+                message,
+                Response::DebuggerPaused(_) | Response::RuntimeExecutionContextDestroyed(_)
+            )
+        })
     }
 
     pub fn runtime_run_if_waiting_for_debugger(
         &mut self,
-    ) -> CDTClientResult<DebuggerPausedResponse> {
+    ) -> CDTClientResult<Option<DebuggerPausedResponse>> {
         let request = Request::new(1, "Runtime.runIfWaitingForDebugger");
         let message = json_to_message(&request)?;
 
@@ -120,13 +128,14 @@ impl CDTClient {
 
         let _messages = self.read_messages_until_result()?;
 
-        let messages = self.read_messages_until_paused()?;
+        let messages = self.read_messages_until_paused_or_destroyed()?;
         let paused_message = match messages.last().unwrap() {
-            Response::DebuggerPaused(msg) => msg,
+            Response::DebuggerPaused(msg) => Some(msg.clone()),
+            Response::RuntimeExecutionContextDestroyed(_msg) => None,
             _ => panic!("debugger_paused expected"),
         };
 
-        Ok(paused_message.clone())
+        Ok(paused_message)
     }
 
     pub fn runtime_enable(&mut self) -> CDTClientResult<Response> {
