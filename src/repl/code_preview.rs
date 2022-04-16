@@ -1,6 +1,8 @@
-use crate::{cdt::models::DebuggerPausedCallFrame, source_code::SourceCode};
+use crate::cdt::models::DebuggerPausedCallFrame;
 
-pub fn show_source_code(
+use super::source_code::SourceCode;
+
+pub fn create_code_preview(
     source_code: &SourceCode,
     call_frame: &DebuggerPausedCallFrame,
 ) -> Result<(String, String), Box<dyn std::error::Error>> {

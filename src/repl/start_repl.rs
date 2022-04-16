@@ -1,14 +1,13 @@
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
-use crate::code_preview::show_source_code;
-use crate::source_code::SourceCode;
 use crate::{cdt::client::CDTClient, repl::repl_state::DebuggerState};
 
 use super::evaluate_command::{
     evaluate_expression, evaluate_expression_from_command, evalulate_and_stringify_command,
 };
 use super::repl_state::{ReplState, ReplStateCallFrame};
+use super::show_source_code_command::show_source_code_command;
 
 pub fn start_repl(host: &str, port: &str, id: &str) {
     let mut client = CDTClient::new(host, port, id);
@@ -124,34 +123,6 @@ fn continue_command(client: &mut CDTClient, repl_state: ReplState) -> ReplState 
             debugger_state: DebuggerState::Exited,
         },
     }
-}
-
-fn show_source_code_command(client: &mut CDTClient, repl_state: ReplState) -> ReplState {
-    let call_frames = repl_state.call_frames.as_ref().unwrap();
-    let call_frame = &call_frames.call_frames[call_frames.active_id];
-    let top_level_script_id = call_frame.location.script_id.clone();
-
-    let source = client
-        .debugger_get_script_source(top_level_script_id)
-        .unwrap();
-
-    let source_code = SourceCode::from_str(&source.result.script_source);
-    let source_mapping = &source_code.source_mapping.as_ref().unwrap();
-    println!("{}", source_mapping.get_file().unwrap());
-
-    let maybe_preview = show_source_code(&source_code, call_frame);
-
-    match maybe_preview {
-        Ok((file_name, preview)) => {
-            println!("{}", file_name);
-            println!("{}", preview);
-        }
-        Err(err) => {
-            println!("Error: {:?}", err);
-        }
-    };
-
-    repl_state
 }
 
 fn next_command(client: &mut CDTClient, repl_state: ReplState) -> ReplState {

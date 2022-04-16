@@ -1,12 +1,9 @@
 mod cdt;
 mod repl;
-mod source_code;
-mod code_preview;
 
 use clap::Parser;
 
 use crate::cdt::http_client::get_debuggers;
-
 use crate::repl::start_repl::start_repl;
 
 #[derive(Parser, Debug)]
