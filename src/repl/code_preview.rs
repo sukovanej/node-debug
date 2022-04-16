@@ -5,7 +5,7 @@ use super::source_code::SourceCode;
 pub fn create_code_preview(
     source_code: &SourceCode,
     call_frame: &DebuggerPausedCallFrame,
-) -> Result<(String, String), Box<dyn std::error::Error>> {
+) -> Result<(String, Vec<(usize, String)>), Box<dyn std::error::Error>> {
     let source_mapping = source_code
         .source_mapping
         .as_ref()
@@ -28,13 +28,15 @@ pub fn create_code_preview(
         .unwrap();
 
     let line = token.get_src_line();
-    let code_preview = source_view
+    let code_preview_lines = source_view
         .source()
         .lines()
+        .map(|s| s.to_owned())
+        .enumerate()
+        .map(|(i, s)| (i + 1, s))
         .skip(line as usize - 4)
         .take(9)
-        .collect::<Vec<&str>>()
-        .join("\n");
+        .collect();
 
-    Ok((file_name, code_preview))
+    Ok((file_name, code_preview_lines))
 }
