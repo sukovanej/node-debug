@@ -5,6 +5,7 @@ use crate::cdt::client::CDTClient;
 use crate::cdt::models::{
     DebuggerPausedCallFrame, RuntimeRemoteObjectResult, RuntimeRemoteObjectResultValue,
 };
+use crate::code_preview::show_source_code;
 use crate::source_code::SourceCode;
 
 #[derive(Clone)]
@@ -98,7 +99,7 @@ fn initialize(client: &mut CDTClient) -> ReplState {
 
 fn run_command(client: &mut CDTClient, line: &str, repl_state: ReplState) -> ReplState {
     match line {
-        "s" | "show" => show_source_code(client, repl_state),
+        "s" | "show" => show_source_code_command(client, repl_state),
         "c" | "continue" => continue_command(client, repl_state),
         cmd if cmd.starts_with("e ") => evaluate_expression(
             client,
@@ -191,7 +192,7 @@ fn runtime_remote_object_to_string(obj: RuntimeRemoteObjectResult) -> String {
     return "[<unknown object>]".to_string();
 }
 
-fn show_source_code(client: &mut CDTClient, repl_state: ReplState) -> ReplState {
+fn show_source_code_command(client: &mut CDTClient, repl_state: ReplState) -> ReplState {
     let call_frames = repl_state.call_frames.as_ref().unwrap();
     let call_frame = &call_frames.call_frames[call_frames.active_id];
     let top_level_script_id = call_frame.location.script_id.clone();
@@ -201,26 +202,10 @@ fn show_source_code(client: &mut CDTClient, repl_state: ReplState) -> ReplState 
         .unwrap();
 
     let source_code = SourceCode::from_str(&source.result.script_source);
-    let source_mapping = &source_code.source_mapping.unwrap();
-    let source_view = source_mapping.get_source_view(0).unwrap();
-
+    let source_mapping = &source_code.source_mapping.as_ref().unwrap();
     println!("{}", source_mapping.get_file().unwrap());
 
-    let token = source_mapping
-        .lookup_token(
-            call_frame.location.line_number,
-            call_frame.location.column_number,
-        )
-        .unwrap();
-    let line = token.get_src_line();
-    let preview = source_view
-        .source()
-        .lines()
-        .skip(line as usize - 4)
-        .take(9)
-        .collect::<Vec<&str>>()
-        .join("\n");
-
+    let preview = show_source_code(&source_code, call_frame);
     println!("{}", preview);
 
     repl_state

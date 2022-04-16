@@ -1,6 +1,7 @@
 mod cdt;
 mod repl;
 mod source_code;
+mod code_preview;
 
 use clap::Parser;
 
