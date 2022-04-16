@@ -144,7 +144,7 @@ fn evaluate_expression(client: &mut CDTClient, line: &str, repl_state: ReplState
             println!("{}", runtime_remote_object_to_string(obj.result));
         }
         Err(err) => {
-            println!("evaluated: {:?}", err);
+            println!("Error while evaluating: {:?}", err);
         }
     };
 

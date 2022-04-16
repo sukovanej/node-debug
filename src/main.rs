@@ -1,6 +1,6 @@
 mod cdt;
-mod source_code;
 mod repl;
+mod source_code;
 
 use clap::Parser;
 
@@ -25,7 +25,13 @@ fn main() {
 
     let debugger_id = match debuggers {
         Ok(debuggers) => debuggers[0].id.to_owned(),
-        _ => unimplemented!()
+        _ => {
+            println!(
+                "Error while fetch {}:{}, is it running?",
+                &args.host, &args.port
+            );
+            std::process::exit(1);
+        }
     };
 
     start_repl(&args.host, &args.port, &debugger_id);
