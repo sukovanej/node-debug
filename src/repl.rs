@@ -2,7 +2,9 @@ use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
 use crate::cdt::client::CDTClient;
-use crate::cdt::models::{DebuggerPausedCallFrame, RuntimeRemoteObjectResult};
+use crate::cdt::models::{
+    DebuggerPausedCallFrame, RuntimeRemoteObjectResult, RuntimeRemoteObjectResultValue,
+};
 use crate::source_code::SourceCode;
 
 #[derive(Clone)]
@@ -31,7 +33,9 @@ pub fn start_repl(host: &str, port: &str, id: &str) {
     client.debugger_set_pause_on_exception().unwrap();
     client.profiler_enable().unwrap();
 
-    let mut repl_state = ReplState { call_frames: None };
+    println!("waiting for the debugger...");
+    let mut repl_state = command_run(&mut client);
+    println!("entering debugger");
 
     loop {
         let readline = rl.readline(">> ");
@@ -61,13 +65,27 @@ pub fn start_repl(host: &str, port: &str, id: &str) {
 
 fn run_command(client: &mut CDTClient, line: &str, repl_state: &ReplState) -> ReplState {
     match line {
-        "r" | "run" => command_run(client, repl_state),
+        "r" | "run" => command_run(client),
         "s" | "show" => show_source_code(client, repl_state),
+        "c" | "continue" => continue_command(client),
+        "h" | "help" => help_command(client, repl_state),
         _ => evaluate_expression(client, line, repl_state),
     }
 }
 
-fn command_run(client: &mut CDTClient, _repl_state: &ReplState) -> ReplState {
+fn continue_command(client: &mut CDTClient) -> ReplState {
+    client.debugger_resume().unwrap();
+    let paused_message = client.runtime_run_if_waiting_for_debugger().unwrap();
+
+    ReplState {
+        call_frames: Some(ReplStateCallFrame {
+            call_frames: paused_message.params.call_frames.clone(),
+            active_id: 0,
+        }),
+    }
+}
+
+fn command_run(client: &mut CDTClient) -> ReplState {
     let paused_message = client.runtime_run_if_waiting_for_debugger().unwrap();
 
     ReplState {
@@ -103,7 +121,10 @@ fn evaluate_expression(client: &mut CDTClient, line: &str, repl_state: &ReplStat
 
 fn runtime_remote_object_to_string(obj: RuntimeRemoteObjectResult) -> String {
     if obj.value.is_some() {
-        return obj.value.unwrap();
+        return match obj.value.unwrap() {
+            RuntimeRemoteObjectResultValue::String(str) => str,
+            RuntimeRemoteObjectResultValue::Number(n) => n.to_string(),
+        };
     } else if obj.description.is_some() {
         return obj.description.unwrap();
     } else if obj.class_name.is_some() {
@@ -126,6 +147,17 @@ fn show_source_code(client: &mut CDTClient, repl_state: &ReplState) -> ReplState
     let mapping_content = &source_code.source_mapping.unwrap().sources_content[0];
 
     println!("{}", mapping_content);
+
+    repl_state.clone()
+}
+
+fn help_command(_: &mut CDTClient, repl_state: &ReplState) -> ReplState {
+    let help = 
+        "s / show                 => show source code of the current call frame\n\
+         c / continue             => resume the execution\n\
+         h / help                 => show this help\n\
+         [javascript expression]  => evalute JS expression in the current call frame";
+    println!("{}", help);
 
     repl_state.clone()
 }

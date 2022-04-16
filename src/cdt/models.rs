@@ -17,9 +17,16 @@ pub struct RuntimeRemoteObject {
 pub struct RuntimeRemoteObjectResult {
     pub r#type: String,
     pub object_id: Option<String>,
-    pub value: Option<String>,
+    pub value: Option<RuntimeRemoteObjectResultValue>,
     pub description: Option<String>,
     pub class_name: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(untagged, rename_all = "camelCase")]
+pub enum RuntimeRemoteObjectResultValue {
+    String(String),
+    Number(i32),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

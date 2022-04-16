@@ -8,7 +8,6 @@ use crate::cdt::http_client::get_debuggers;
 
 use crate::repl::start_repl;
 
-/// Simple program to greet a person
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
