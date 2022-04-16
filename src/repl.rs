@@ -206,8 +206,17 @@ fn show_source_code_command(client: &mut CDTClient, repl_state: ReplState) -> Re
     let source_mapping = &source_code.source_mapping.as_ref().unwrap();
     println!("{}", source_mapping.get_file().unwrap());
 
-    let preview = show_source_code(&source_code, call_frame);
-    println!("{}", preview);
+    let maybe_preview = show_source_code(&source_code, call_frame);
+
+    match maybe_preview {
+        Ok((file_name, preview)) => {
+            println!("{}", file_name);
+            println!("{}", preview);
+        },
+        Err(err) => {
+            println!("Error: {:?}", err);
+        }
+    };
 
     repl_state
 }

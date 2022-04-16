@@ -27,7 +27,7 @@ pub type CDTClientResult<T> = Result<T, Box<dyn std::error::Error>>;
 fn parse_method_message(message: Value) -> CDTClientResult<Response> {
     let method = message
         .get("method")
-        .unwrap()
+        .ok_or("message must have a method field")?
         .as_str()
         .ok_or("method field must be string")?;
 
@@ -42,7 +42,9 @@ fn parse_method_message(message: Value) -> CDTClientResult<Response> {
 }
 
 fn parse_result_message(message: Value) -> CDTClientResult<Response> {
-    let result = message.get("result").unwrap();
+    let result = message
+        .get("result")
+        .ok_or("message must have a result field")?;
 
     Ok(if result.get("scriptSource").is_some() {
         Response::ResultScriptSource(serde_json::from_value(message)?)
@@ -67,10 +69,9 @@ fn parse_message(message: &str) -> CDTClientResult<Response> {
 
 impl CDTClient {
     pub fn new(host: &str, port: &str, id: &str) -> CDTClient {
-        let client = ClientBuilder::new(format!("ws://{}:{}/{}", host, port, id).as_str())
-            .unwrap()
-            .connect_insecure()
-            .unwrap();
+        let mut client_builder =
+            ClientBuilder::new(format!("ws://{}:{}/{}", host, port, id).as_str()).unwrap();
+        let client = client_builder.connect_insecure().unwrap();
 
         CDTClient { client }
     }
@@ -119,9 +120,7 @@ impl CDTClient {
     }
 
     pub fn read_messages_until_script_source(&mut self) -> CDTClientResult<Vec<Response>> {
-        self.read_messages_until(|message| {
-            matches!(message, Response::ResultScriptSource(_))
-        })
+        self.read_messages_until(|message| matches!(message, Response::ResultScriptSource(_)))
     }
 
     pub fn runtime_run_if_waiting_for_debugger(
@@ -199,9 +198,9 @@ impl CDTClient {
         let messages = self.read_messages_until_script_source().unwrap();
         let last_message = messages
             .last()
-            .unwrap()
+            .ok_or("no message received after waiting")?
             .expect_result_script_source()
-            .unwrap();
+            .ok_or("result script source expected")?;
 
         Ok(last_message.clone())
     }
@@ -211,7 +210,7 @@ impl CDTClient {
         let request = Request::new_with_params(1, "Debugger.setPauseOnExceptions", params)?;
         let message = json_to_message(&request)?;
 
-        self.client.send_message(&message).unwrap();
+        self.client.send_message(&message)?;
         Ok(())
     }
 
@@ -224,10 +223,10 @@ impl CDTClient {
         let request = Request::new_with_params(1, "Debugger.evaluateOnCallFrame", params)?;
         let message = json_to_message(&request)?;
 
-        self.client.send_message(&message).unwrap();
+        self.client.send_message(&message)?;
 
         let messages = self.read_messages_until_result()?;
-        let remote_object = messages.last().unwrap();
+        let remote_object = messages.last().ok_or("no message received after waiting")?;
 
         let remote_object = match remote_object {
             Response::Result(o) => Ok(o),
@@ -245,7 +244,7 @@ impl CDTClient {
         let request = Request::new_with_params(1, "Runtime.getProperties", params)?;
         let message = json_to_message(&request)?;
 
-        self.client.send_message(&message).unwrap();
+        self.client.send_message(&message)?;
         Ok(())
     }
 
@@ -258,7 +257,7 @@ impl CDTClient {
             Request::new_with_params(1, "Debugger.getPossibleBreakpoints", request_params)?;
         let message = json_to_message(&request)?;
 
-        self.client.send_message(&message).unwrap();
+        self.client.send_message(&message)?;
         Ok(())
     }
 
@@ -266,7 +265,7 @@ impl CDTClient {
         let request = Request::new(1, "Debugger.stepOver");
         let message = json_to_message(&request)?;
 
-        self.client.send_message(&message).unwrap();
+        self.client.send_message(&message)?;
         Ok(())
     }
 }
