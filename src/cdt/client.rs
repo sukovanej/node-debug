@@ -126,10 +126,7 @@ impl CDTClient {
     pub fn runtime_run_if_waiting_for_debugger(
         &mut self,
     ) -> CDTClientResult<Option<DebuggerPausedResponse>> {
-        let request = Request::new(1, "Runtime.runIfWaitingForDebugger");
-        let message = json_to_message(&request)?;
-
-        self.client.send_message(&message)?;
+        self.send_method("Runtime.runIfWaitingForDebugger")?;
 
         let messages = self.read_messages_until_paused_or_destroyed()?;
 
@@ -143,46 +140,29 @@ impl CDTClient {
     }
 
     pub fn runtime_enable(&mut self) -> CDTClientResult<Response> {
-        let request = Request::new(1, "Runtime.enable");
-        let message = json_to_message(&request)?;
-        self.client.send_message(&message).unwrap();
-
+        self.send_method("Runtime.enable")?;
         let messages = self.read_messages_until_result()?;
         Ok(messages.last().unwrap().clone())
     }
 
     pub fn profiler_enable(&mut self) -> CDTClientResult<Response> {
-        let request = Request::new(1, "Profiler.enable");
-        let message = json_to_message(&request)?;
-
-        self.client.send_message(&message).unwrap();
+        self.send_method("Profiler.enable")?;
         let messages = self.read_messages_until_result()?;
         Ok(messages.last().unwrap().clone())
     }
 
     pub fn debugger_enable(&mut self) -> CDTClientResult<Response> {
-        let request = Request::new(1, "Debugger.enable");
-        let message = json_to_message(&request)?;
-
-        self.client.send_message(&message).unwrap();
+        self.send_method("Debugger.enable")?;
         let messages = self.read_messages_until_result()?;
         Ok(messages.last().unwrap().clone())
     }
 
     pub fn debugger_resume(&mut self) -> CDTClientResult<()> {
-        let request = Request::new(1, "Debugger.resume");
-        let message = json_to_message(&request)?;
-
-        self.client.send_message(&message).unwrap();
-        Ok(())
+        self.send_method("Debugger.resume")
     }
 
     pub fn debugger_pause(&mut self) -> CDTClientResult<()> {
-        let request = Request::new(1, "Debugger.resume");
-        let message = json_to_message(&request)?;
-
-        self.client.send_message(&message).unwrap();
-        Ok(())
+        self.send_method("Debugger.resume")
     }
 
     pub fn debugger_get_script_source(
@@ -262,7 +242,12 @@ impl CDTClient {
     }
 
     pub fn debugger_step_over(&mut self) -> CDTClientResult<()> {
-        let request = Request::new(1, "Debugger.stepOver");
+        self.send_method("Debugger.stepOver")
+    }
+
+
+    fn send_method(&mut self, method: &str) -> CDTClientResult<()> {
+        let request = Request::new(1, method);
         let message = json_to_message(&request)?;
 
         self.client.send_message(&message)?;
