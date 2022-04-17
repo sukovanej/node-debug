@@ -218,6 +218,19 @@ impl CDTClient {
         self.send_method("Debugger.stepOver")
     }
 
+    pub fn debugger_step_into(&mut self) -> CDTClientResult<Option<DebuggerPausedResponse>> {
+        self.send_method("Debugger.stepInto")?;
+        let messages = self.read_messages_until_paused_or_destroyed()?;
+        let paused_message = CDTClient::ensure_paused_destroyed_message(&messages);
+        Ok(paused_message)
+    }
+
+    pub fn debugger_step_out(&mut self) -> CDTClientResult<Option<DebuggerPausedResponse>> {
+        self.send_method("Debugger.stepOut")?;
+        let messages = self.read_messages_until_paused_or_destroyed()?;
+        let paused_message = CDTClient::ensure_paused_destroyed_message(&messages);
+        Ok(paused_message)
+    }
 
     fn send_method(&mut self, method: &str) -> CDTClientResult<()> {
         let request = Request::new(1, method);

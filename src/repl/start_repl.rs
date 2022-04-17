@@ -86,6 +86,8 @@ fn run_command(client: &mut CDTClient, line: &str, repl_state: ReplState) -> Rep
     match line {
         "s" | "show" => show_source_code_command(client, repl_state),
         "c" | "continue" => continue_command(client, repl_state),
+        "i" | "step-into" => step_into_command(client, repl_state),
+        "o" | "step-out" => step_out_command(client, repl_state),
         cmd if cmd.starts_with("e ") => evaluate_expression_from_command(client, cmd, repl_state),
         cmd if cmd.starts_with("es ") => evalulate_and_stringify_command(client, cmd, repl_state),
         "n" | "next" => next_command(client, repl_state),
@@ -93,6 +95,16 @@ fn run_command(client: &mut CDTClient, line: &str, repl_state: ReplState) -> Rep
         "h" | "help" => help_command(client, repl_state),
         _ => evaluate_expression(client, line, repl_state),
     }
+}
+
+fn step_into_command(client: &mut CDTClient, _: ReplState) -> ReplState {
+    let message = client.debugger_step_into().unwrap();
+    handle_pause_or_destroy_message(message)
+}
+
+fn step_out_command(client: &mut CDTClient, _: ReplState) -> ReplState {
+    let message = client.debugger_step_out().unwrap();
+    handle_pause_or_destroy_message(message)
 }
 
 fn quit_command() -> ReplState {
