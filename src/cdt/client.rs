@@ -18,6 +18,7 @@ fn json_to_message<T: Serialize>(json_value: &T) -> Result<Message<'static>, Err
 
 pub struct CDTClient {
     client: Client<TcpStream>,
+    id_counter: u64,
 }
 
 pub type CDTClientResult<T> = Result<T, Box<dyn std::error::Error>>;
@@ -70,8 +71,13 @@ impl CDTClient {
         let mut client_builder =
             ClientBuilder::new(format!("ws://{}:{}/{}", host, port, id).as_str()).unwrap();
         let client = client_builder.connect_insecure().unwrap();
+        let id_counter = 1;
 
-        CDTClient { client }
+        CDTClient { client, id_counter }
+    }
+
+    fn increase_id_counter(&mut self) {
+        self.id_counter += 1;
     }
 
     fn read_messages_until<F>(&mut self, predicate: F) -> CDTClientResult<Vec<Response>>
@@ -260,18 +266,20 @@ impl CDTClient {
     }
 
     fn send_method(&mut self, method: &str) -> CDTClientResult<()> {
-        let request = Request::new(1, method);
+        let request = Request::new(self.id_counter, method);
         let message = json_to_message(&request)?;
 
         self.client.send_message(&message)?;
+        self.increase_id_counter();
         Ok(())
     }
 
     fn send_method_with_params(&mut self, method: &str, params: Value) -> CDTClientResult<()> {
-        let request = Request::new_with_params(1, method, params)?;
+        let request = Request::new_with_params(self.id_counter, method, params)?;
         let message = json_to_message(&request)?;
 
         self.client.send_message(&message)?;
+        self.increase_id_counter();
         Ok(())
     }
 

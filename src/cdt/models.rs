@@ -167,13 +167,13 @@ pub struct ResultScriptSourceResponseResult {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Request {
-    pub id: i32,
+    pub id: u64,
     pub method: String,
     pub params: Value,
 }
 
 impl Request {
-    pub fn new(id: i32, method: &str) -> Request {
+    pub fn new(id: u64, method: &str) -> Request {
         let params = Value::Object(Map::new());
         Request {
             id,
@@ -182,7 +182,7 @@ impl Request {
         }
     }
 
-    pub fn new_with_params(id: i32, method: &str, params: Value) -> Result<Request, Error> {
+    pub fn new_with_params(id: u64, method: &str, params: Value) -> Result<Request, Error> {
         Ok(Request {
             id,
             method: method.to_owned(),
