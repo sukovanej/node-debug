@@ -156,6 +156,8 @@ fn next_command(client: &mut CDTClient, repl_state: ReplState) -> ReplState {
 fn help_command(_: &mut CDTClient, repl_state: ReplState) -> ReplState {
     let help = "s / show                 show source code of the current call frame\n\
          c / continue             resume the execution\n\
+         i / step-into            step out of the function\n\
+         o / step-out             step into the function\n\
          n / next                 step over in the execution\n\
          q / quit                 quit the debugger\n\
          h / help                 show this help\n\
