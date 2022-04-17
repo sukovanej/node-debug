@@ -1,6 +1,7 @@
 ## TODO
 
- - repl: show the preview with a pointer to the current line
+ - repl: step out
+ - repl: step into
 
 ## CDT Protocol notes
 
