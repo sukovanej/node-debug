@@ -8,6 +8,14 @@ pub type RuntimeRemoteObjectId = String;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct RuntimeCallArgument {
+    value: Value,
+    unserializable_value: String,
+    object_id: RuntimeRemoteObjectId
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct RuntimeRemoteObject {
     pub result: RuntimeRemoteObjectResult,
 }

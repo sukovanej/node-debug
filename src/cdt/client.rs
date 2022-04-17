@@ -7,8 +7,8 @@ use websocket::sync::Client;
 use websocket::{ClientBuilder, Message, OwnedMessage};
 
 use super::models::{
-    DebuggerCallFrameId, DebuggerPausedResponse, Response, ResultScriptSourceResponse,
-    RuntimeRemoteObject, RuntimeRemoteObjectId, RuntimeScriptId, Request
+    DebuggerCallFrameId, DebuggerPausedResponse, Request, Response, ResultScriptSourceResponse,
+    RuntimeCallArgument, RuntimeRemoteObject, RuntimeRemoteObjectId, RuntimeScriptId,
 };
 
 fn json_to_message<T: Serialize>(json_value: &T) -> Result<Message<'static>, Error> {
@@ -240,6 +240,23 @@ impl CDTClient {
         let messages = self.read_messages_until_paused_or_destroyed()?;
         let paused_message = CDTClient::ensure_paused_or_destroyed_message(&messages);
         Ok(paused_message)
+    }
+
+    pub fn debugger_set_variable_value(
+        &mut self,
+        scope_number: i32,
+        variable_name: &str,
+        new_value: RuntimeCallArgument,
+        call_frame_id: DebuggerCallFrameId,
+    ) -> CDTClientResult<()> {
+        let params = json!({
+            "scopeNumber": scope_number,
+            "variableName": variable_name,
+            "newValue": new_value,
+            "callFrameId": call_frame_id
+        });
+        self.send_method_with_params("Debugger.setVariableValue", params)?;
+        Ok(())
     }
 
     fn send_method(&mut self, method: &str) -> CDTClientResult<()> {
