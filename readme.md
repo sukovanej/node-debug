@@ -1,7 +1,6 @@
 ## TODO
 
- - repl: step out
- - repl: step into
+ - set max timeout for blocking websocket calls
 
 ## CDT Protocol notes
 
