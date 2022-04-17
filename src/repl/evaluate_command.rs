@@ -54,7 +54,7 @@ fn runtime_remote_object_to_string(obj: RuntimeRemoteObjectResult) -> String {
     if obj.value.is_some() {
         match obj.value.unwrap() {
             RuntimeRemoteObjectResultValue::String(str) => {
-                format!("[\x1b[90\"\x1b[0m{}[\x1b[90\"\x1b[0m", str)
+                format!("\x1b[90m\"\x1b[0m{}\x1b[90m\"\x1b[0m", str)
             }
             RuntimeRemoteObjectResultValue::Number(n) => n.to_string(),
             RuntimeRemoteObjectResultValue::Bool(b) => b.to_string(),
