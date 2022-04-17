@@ -169,11 +169,7 @@ impl CDTClient {
         &mut self,
         script_id: RuntimeScriptId,
     ) -> CDTClientResult<ResultScriptSourceResponse> {
-        let request_params = json!({ "scriptId": script_id });
-        let request = Request::new_with_params(1, "Debugger.getScriptSource", request_params)?;
-        let message = json_to_message(&request)?;
-
-        self.client.send_message(&message).unwrap();
+        self.send_method_with_params("Debugger.getScriptSource", json!({ "scriptId": script_id }))?;
 
         let messages = self.read_messages_until_script_source().unwrap();
         let last_message = messages
@@ -186,12 +182,7 @@ impl CDTClient {
     }
 
     pub fn debugger_set_pause_on_exception(&mut self) -> CDTClientResult<()> {
-        let params = json!({"state": "none"});
-        let request = Request::new_with_params(1, "Debugger.setPauseOnExceptions", params)?;
-        let message = json_to_message(&request)?;
-
-        self.client.send_message(&message)?;
-        Ok(())
+        self.send_method_with_params("Debugger.setPauseOnExceptions", json!({"state": "none"}))
     }
 
     pub fn debugger_evaluate_on_call_frame(
@@ -200,10 +191,7 @@ impl CDTClient {
         expression: &str,
     ) -> CDTClientResult<RuntimeRemoteObject> {
         let params = json!({"callFrameId": call_frame_id, "expression": expression});
-        let request = Request::new_with_params(1, "Debugger.evaluateOnCallFrame", params)?;
-        let message = json_to_message(&request)?;
-
-        self.client.send_message(&message)?;
+        self.send_method_with_params("Debugger.evaluateOnCallFrame", params)?;
 
         let messages = self.read_messages_until_result()?;
         let remote_object = messages.last().ok_or("no message received after waiting")?;
@@ -220,25 +208,17 @@ impl CDTClient {
         &mut self,
         object_id: RuntimeRemoteObjectId,
     ) -> CDTClientResult<()> {
-        let params = json!({ "objectId": object_id });
-        let request = Request::new_with_params(1, "Runtime.getProperties", params)?;
-        let message = json_to_message(&request)?;
-
-        self.client.send_message(&message)?;
-        Ok(())
+        self.send_method_with_params("Runtime.getProperties", json!({ "objectId": object_id }))
     }
 
     pub fn debugger_get_possible_breakpoints(
         &mut self,
         script_id: RuntimeScriptId,
     ) -> CDTClientResult<()> {
-        let request_params = json!({ "scriptId": script_id });
-        let request =
-            Request::new_with_params(1, "Debugger.getPossibleBreakpoints", request_params)?;
-        let message = json_to_message(&request)?;
-
-        self.client.send_message(&message)?;
-        Ok(())
+        self.send_method_with_params(
+            "Debugger.getPossibleBreakpoints",
+            json!({ "scriptId": script_id }),
+        )
     }
 
     pub fn debugger_step_over(&mut self) -> CDTClientResult<()> {
@@ -248,6 +228,14 @@ impl CDTClient {
 
     fn send_method(&mut self, method: &str) -> CDTClientResult<()> {
         let request = Request::new(1, method);
+        let message = json_to_message(&request)?;
+
+        self.client.send_message(&message)?;
+        Ok(())
+    }
+
+    fn send_method_with_params(&mut self, method: &str, params: Value) -> CDTClientResult<()> {
+        let request = Request::new_with_params(1, method, params)?;
         let message = json_to_message(&request)?;
 
         self.client.send_message(&message)?;
