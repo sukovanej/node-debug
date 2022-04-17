@@ -127,15 +127,8 @@ impl CDTClient {
         &mut self,
     ) -> CDTClientResult<Option<DebuggerPausedResponse>> {
         self.send_method("Runtime.runIfWaitingForDebugger")?;
-
         let messages = self.read_messages_until_paused_or_destroyed()?;
-
-        let paused_message = match messages.last().unwrap() {
-            Response::DebuggerPaused(msg) => Some(msg.clone()),
-            Response::RuntimeExecutionContextDestroyed(_msg) => None,
-            _ => panic!("debugger_paused expected"),
-        };
-
+        let paused_message = CDTClient::ensure_paused_destroyed_message(&messages);
         Ok(paused_message)
     }
 
@@ -240,5 +233,13 @@ impl CDTClient {
 
         self.client.send_message(&message)?;
         Ok(())
+    }
+
+    fn ensure_paused_destroyed_message(messages: &[Response]) -> Option<DebuggerPausedResponse> {
+        match messages.last().unwrap() {
+            Response::DebuggerPaused(msg) => Some(msg.clone()),
+            Response::RuntimeExecutionContextDestroyed(_msg) => None,
+            _ => panic!("debugger_paused expected"),
+        }
     }
 }
