@@ -23,6 +23,7 @@ pub fn start_repl(host: &str, port: &str, id: &str) {
     client.debugger_enable().unwrap();
     client.debugger_set_pause_on_exception().unwrap();
     client.profiler_enable().unwrap();
+    client.debugger_pause().unwrap();
 
     println!("Waiting for the debugger...");
     let mut repl_state = initialize(&mut client);
