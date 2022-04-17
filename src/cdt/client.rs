@@ -76,7 +76,7 @@ impl CDTClient {
         CDTClient { client }
     }
 
-    pub fn read_messages_until<F>(&mut self, predicate: F) -> CDTClientResult<Vec<Response>>
+    fn read_messages_until<F>(&mut self, predicate: F) -> CDTClientResult<Vec<Response>>
     where
         F: Fn(&Response) -> bool,
     {
@@ -99,7 +99,7 @@ impl CDTClient {
         Ok(messages)
     }
 
-    pub fn read_messages_until_result(&mut self) -> CDTClientResult<Vec<Response>> {
+    fn read_messages_until_result(&mut self) -> CDTClientResult<Vec<Response>> {
         self.read_messages_until(|message| {
             matches!(
                 message,
@@ -110,7 +110,7 @@ impl CDTClient {
         })
     }
 
-    pub fn read_messages_until_paused_or_destroyed(&mut self) -> CDTClientResult<Vec<Response>> {
+    fn read_messages_until_paused_or_destroyed(&mut self) -> CDTClientResult<Vec<Response>> {
         self.read_messages_until(|message| {
             matches!(
                 message,
@@ -119,7 +119,7 @@ impl CDTClient {
         })
     }
 
-    pub fn read_messages_until_script_source(&mut self) -> CDTClientResult<Vec<Response>> {
+    fn read_messages_until_script_source(&mut self) -> CDTClientResult<Vec<Response>> {
         self.read_messages_until(|message| matches!(message, Response::ResultScriptSource(_)))
     }
 
