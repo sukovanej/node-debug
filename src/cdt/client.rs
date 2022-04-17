@@ -128,7 +128,7 @@ impl CDTClient {
     ) -> CDTClientResult<Option<DebuggerPausedResponse>> {
         self.send_method("Runtime.runIfWaitingForDebugger")?;
         let messages = self.read_messages_until_paused_or_destroyed()?;
-        let paused_message = CDTClient::ensure_paused_destroyed_message(&messages);
+        let paused_message = CDTClient::ensure_paused_or_destroyed_message(&messages);
         Ok(paused_message)
     }
 
@@ -221,14 +221,14 @@ impl CDTClient {
     pub fn debugger_step_into(&mut self) -> CDTClientResult<Option<DebuggerPausedResponse>> {
         self.send_method("Debugger.stepInto")?;
         let messages = self.read_messages_until_paused_or_destroyed()?;
-        let paused_message = CDTClient::ensure_paused_destroyed_message(&messages);
+        let paused_message = CDTClient::ensure_paused_or_destroyed_message(&messages);
         Ok(paused_message)
     }
 
     pub fn debugger_step_out(&mut self) -> CDTClientResult<Option<DebuggerPausedResponse>> {
         self.send_method("Debugger.stepOut")?;
         let messages = self.read_messages_until_paused_or_destroyed()?;
-        let paused_message = CDTClient::ensure_paused_destroyed_message(&messages);
+        let paused_message = CDTClient::ensure_paused_or_destroyed_message(&messages);
         Ok(paused_message)
     }
 
@@ -248,7 +248,7 @@ impl CDTClient {
         Ok(())
     }
 
-    fn ensure_paused_destroyed_message(messages: &[Response]) -> Option<DebuggerPausedResponse> {
+    fn ensure_paused_or_destroyed_message(messages: &[Response]) -> Option<DebuggerPausedResponse> {
         match messages.last().unwrap() {
             Response::DebuggerPaused(msg) => Some(msg.clone()),
             Response::RuntimeExecutionContextDestroyed(_msg) => None,
