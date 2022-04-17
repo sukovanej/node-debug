@@ -6,11 +6,9 @@ use serde_json::{json, to_string_pretty, Error, Value};
 use websocket::sync::Client;
 use websocket::{ClientBuilder, Message, OwnedMessage};
 
-use crate::cdt::models::Request;
-
 use super::models::{
     DebuggerCallFrameId, DebuggerPausedResponse, Response, ResultScriptSourceResponse,
-    RuntimeRemoteObject, RuntimeRemoteObjectId, RuntimeScriptId,
+    RuntimeRemoteObject, RuntimeRemoteObjectId, RuntimeScriptId, Request
 };
 
 fn json_to_message<T: Serialize>(json_value: &T) -> Result<Message<'static>, Error> {
@@ -227,6 +225,18 @@ impl CDTClient {
 
     pub fn debugger_step_out(&mut self) -> CDTClientResult<Option<DebuggerPausedResponse>> {
         self.send_method("Debugger.stepOut")?;
+        let messages = self.read_messages_until_paused_or_destroyed()?;
+        let paused_message = CDTClient::ensure_paused_or_destroyed_message(&messages);
+        Ok(paused_message)
+    }
+
+    pub fn debugger_continue_to_location(
+        &mut self,
+        script_id: RuntimeScriptId,
+        line_number: u32,
+    ) -> CDTClientResult<Option<DebuggerPausedResponse>> {
+        let params = json!({ "location": { "scriptId": script_id, "lineNumber": line_number} });
+        self.send_method_with_params("Debugger.continueToLocation", params)?;
         let messages = self.read_messages_until_paused_or_destroyed()?;
         let paused_message = CDTClient::ensure_paused_or_destroyed_message(&messages);
         Ok(paused_message)

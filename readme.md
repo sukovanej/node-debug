@@ -1,6 +1,8 @@
 ## TODO
 
  - set max timeout for blocking websocket calls
+ - continue-to command - continue to a position
+ - ns command - combination of next and show
 
 ## CDT Protocol notes
 

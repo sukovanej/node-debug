@@ -8,16 +8,16 @@ pub fn evaluate_expression(
     expression: &str,
     repl_state: ReplState,
 ) -> ReplState {
-    if repl_state.call_frames.is_none() {
-        return repl_state.clone();
+    let call_frame_id = repl_state
+        .get_active_call_frame()
+        .map(|call_frame| &call_frame.call_frame_id);
+
+    if call_frame_id.is_none() {
+        return repl_state;
     }
 
-    let call_frames = repl_state.call_frames.as_ref().unwrap();
-    let call_frame = &call_frames.call_frames[call_frames.active_id];
-    let call_frame_id = &call_frame.call_frame_id;
-
     let remote_object =
-        client.debugger_evaluate_on_call_frame(call_frame_id.to_owned(), expression);
+        client.debugger_evaluate_on_call_frame(call_frame_id.unwrap().to_owned(), expression);
 
     match remote_object {
         Ok(obj) => {
@@ -53,15 +53,17 @@ pub fn evalulate_and_stringify_command(
 fn runtime_remote_object_to_string(obj: RuntimeRemoteObjectResult) -> String {
     if obj.value.is_some() {
         match obj.value.unwrap() {
-            RuntimeRemoteObjectResultValue::String(str) => format!("\"{}\"", str),
+            RuntimeRemoteObjectResultValue::String(str) => {
+                format!("[\x1b[90\"\x1b[0m{}[\x1b[90\"\x1b[0m", str)
+            }
             RuntimeRemoteObjectResultValue::Number(n) => n.to_string(),
             RuntimeRemoteObjectResultValue::Bool(b) => b.to_string(),
         }
     } else if obj.description.is_some() {
-        format!("[description {}]", obj.description.unwrap())
+        format!("[\x1b[90mdescription\x1b[0m {}]", obj.description.unwrap())
     } else if obj.class_name.is_some() {
-        format!("[class {}]", obj.class_name.unwrap())
+        format!("[\x1b[90mclass\x1b[0m {}]", obj.class_name.unwrap())
     } else {
-        "[<unknown object>]".to_string()
+        "[\x1b[90m<unknown object>\x1b[0m]".to_string()
     }
 }
