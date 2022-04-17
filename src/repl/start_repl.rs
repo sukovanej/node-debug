@@ -1,6 +1,7 @@
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
+use crate::cdt::models::DebuggerPausedResponse;
 use crate::{cdt::client::CDTClient, repl::repl_state::DebuggerState};
 
 use super::evaluate_command::{
@@ -110,7 +111,10 @@ fn continue_command(client: &mut CDTClient, repl_state: ReplState) -> ReplState 
 
     client.debugger_resume().unwrap();
     let message = client.runtime_run_if_waiting_for_debugger().unwrap();
+    handle_pause_or_destroy_message(message)
+}
 
+fn handle_pause_or_destroy_message(message: Option<DebuggerPausedResponse>) -> ReplState {
     match message {
         Some(message) => ReplState {
             call_frames: Some(ReplStateCallFrame {
@@ -134,20 +138,7 @@ fn next_command(client: &mut CDTClient, repl_state: ReplState) -> ReplState {
 
     client.debugger_step_over().unwrap();
     let message = client.runtime_run_if_waiting_for_debugger().unwrap();
-
-    match message {
-        Some(message) => ReplState {
-            call_frames: Some(ReplStateCallFrame {
-                call_frames: message.params.call_frames.clone(),
-                active_id: 0,
-            }),
-            debugger_state: DebuggerState::Paused,
-        },
-        None => ReplState {
-            call_frames: None,
-            debugger_state: DebuggerState::Exited,
-        },
-    }
+    handle_pause_or_destroy_message(message)
 }
 
 fn help_command(_: &mut CDTClient, repl_state: ReplState) -> ReplState {
